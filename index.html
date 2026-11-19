@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Pylinka Demo</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0b14; }
+      canvas { display: block; }
+      #info {
+        position: fixed; left: 0; right: 0; bottom: 0;
+        padding: 12px 16px; box-sizing: border-box;
+        font: 12px/1.5 ui-monospace, Menlo, monospace; color: #b8b4cc;
+        background: rgba(11, 11, 20, 0.85); border-top: 1px solid #2a2840;
+      }
+      #info h1 { margin: 0 0 4px; font-size: 13px; color: #e4dcff; }
+      #info ul { margin: 0; padding-left: 18px; }
+      #top {
+        position: fixed; left: 0; right: 0; top: 0;
+        font: 13px/1.5 ui-monospace, Menlo, monospace; color: #e4dcff;
+        background: rgba(11, 11, 20, 0.85); border-bottom: 1px solid #2a2840;
+      }
+      #menu { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 8px 16px; }
+      #perf {
+        padding: 4px 16px; font-size: 12px; color: #8fd6a8;
+        border-top: 1px solid #2a2840; font-variant-numeric: tabular-nums;
+      }
+      #menu .title { margin-right: auto; }
+      #menu label { color: #b8b4cc; white-space: nowrap; }
+      #menu select {
+        font: inherit; color: #e4dcff; background: #14132a; cursor: pointer;
+        border: 1px solid #2a2840; border-radius: 4px; padding: 2px 6px; margin-left: 4px;
+      }
+      #menu select:hover, #menu select:focus { border-color: #6a5acd; }
+      #error {
+        position: fixed; left: 16px; right: 16px; top: 50%; margin: 0;
+        font: 13px/1.5 ui-monospace, Menlo, monospace; color: #ff8a8a; white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <header id="top">
+      <nav id="menu">
+        <span class="title">Pylinka Demo</span>
+        <label>Emitter
+          <select id="select-emitter">
+            <option value="cascade" selected>Cascade</option>
+            <option value="birds">Birds</option>
+            <option value="swirl">Swirl</option>
+          </select>
+        </label>
+        <label># particles
+          <select id="select-count">
+            <option value="10">10</option>
+            <option value="100" selected>100</option>
+            <option value="1000">1,000</option>
+            <option value="10000">10,000</option>
+            <option value="100000">100,000</option>
+          </select>
+        </label>
+        <label>Info
+          <select id="select-info" aria-controls="info">
+            <option value="hidden" selected>Hidden</option>
+            <option value="shown">Shown</option>
+          </select>
+        </label>
+      </nav>
+      <div id="perf" aria-live="off"
+        title="FPS = frames per second · DC = draw calls per frame · Em = emitters · Pt = live particles (read back from the GPU every 30 frames) · Max = peak particles since load · FT = CPU frame time">FPS – | DC – | Em – | Pt – | Max – | FT –</div>
+    </header>
+    <footer id="info" hidden>
+      <h1>Skull emitters · PixiJS v8 · @pylinka/core (GPU simulation) · Spine 4.2 · a port of particles_demo (Particlr)</h1>
+      Three setups, one emitter each, picked from the menu. Each is a Pylinka node graph built in code (<code>src/skullEffects.ts</code>) and simulated entirely on the GPU; the app sets the screen-relative positions through Pylinka knobs. The skulls are a flipbook baked from the Spine 'still' loop at startup: 40 frames of 96 px (~31 fps), plus a mirrored copy of each frame for skulls facing the other way. Only the shown setup is simulated. <b># particles</b> sets how many skulls are alive at once; changing it rebuilds the emitter, because a Pylinka pool's size is fixed when it is built.
+      <ul>
+        <li><b>Emitter: Cascade</b> — # particles alive at once (births run 50% ahead of deaths to keep the pool full) 56–80 px skulls fired upward in a 30° fan at 300–360 px/s, under 450 px/s² gravity; they land on a floor 80 px below the emitter and bounce (55% vertical speed kept, 80% sideways); 2.5–3.5 s life, growing from half size to full; fades in over the first 15% of life, holds at 90% opacity, then fades out in the last 179–250 ms. Each skull has a random tilt (±180°) and faces left or right at random. From 1.65 s of age (when a skull typically first lands) it spins at a random 90–360 °/s either way.</li>
+        <li><b>Emitter: Birds</b> — # particles skulls flying left to right in a 300 px band, entering and leaving off screen (they die just past the right edge, and a new one enters on the left). Speed is random, 40–120 px/s, and size follows it (32–90 px), so smaller birds are slower. All face their flight; no tilt or fade. Simulated 40 s ahead at startup so the flock already spans the screen.</li>
+        <li><b>Emitter: Swirl</b> — the cascade's fountain fired from lower down (85% of the way down the open band), its emitter swinging left and right on a 2 s sine wave (±25% of the width; y fixed), with no gravity or floor, pulled by two attractors at (25%, 50%) and (75%, 50%) of the band. Each pulls straight at its point at up to 3,000 px/s², easing smoothly to nothing at a radius of 1.2× its distance from the emitter. Mild drag (1) lets skulls spiral in. Moving the emitter leaves skulls already in flight where they are.</li>
+        <li><b>Differences from particles_demo</b> — Pylinka keeps every particle on the GPU, so nothing that needs per-particle CPU access carries over: there is no Spine mode (a live skeleton per particle); a cascade skull gets one spin from about when it lands instead of a new one at every bounce; mirroring is a second row of the flipbook rather than a negative scale; skulls draw in pool order, not sorted oldest or fastest in front; and each skull's flipbook starts on frame 0 rather than a random frame.</li>
+      </ul>
+      Each Pixi tick: <code>runtime.update(dt)</code> queues a step, and Pylinka runs it on the GPU when Pixi renders the view.
+    </footer>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
